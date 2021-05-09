@@ -6,11 +6,12 @@ import random
 import torch
 import math
 from torch.autograd import Variable
-from helper import *
+from sociallstm.helper import *
 
 class DataLoader():
 
-    def __init__(self,f_prefix, batch_size=5, seq_length=20, num_of_validation = 0, forcePreProcess=False, infer=False, generate = False):
+
+    def __init__(self,f_prefix, batch_size=5, seq_length=20, num_of_validation = 0, forcePreProcess=False, infer=False, generate = False, singleInference = None):
         '''
         Initialiser function for the DataLoader class
         params:
@@ -22,14 +23,23 @@ class DataLoader():
         forcePreProcess : Flag to forcefully preprocess the data again from csv files
         '''
         # base test files
-        base_test_dataset=  ['/data/test/biwi/biwi_eth.txt', 
-                        '/data/test/crowds/crowds_zara01.txt',
-                        '/data/test/crowds/uni_examples.txt', 
-                        '/data/test/stanford/coupa_0.txt',
-                         '/data/test/stanford/coupa_1.txt', '/data/test/stanford/gates_2.txt','/data/test/stanford/hyang_0.txt','/data/test/stanford/hyang_1.txt','/data/test/stanford/hyang_3.txt','/data/test/stanford/hyang_8.txt',
-                          '/data/test/stanford/little_0.txt','/data/test/stanford/little_1.txt','/data/test/stanford/little_2.txt','/data/test/stanford/little_3.txt','/data/test/stanford/nexus_5.txt','/data/test/stanford/nexus_6.txt',
-                          '/data/test/stanford/quad_0.txt','/data/test/stanford/quad_1.txt','/data/test/stanford/quad_2.txt','/data/test/stanford/quad_3.txt'
+        base_test_dataset=  [
+            
+                        '/data/test/custom/custom.txt'
+                        #'/data/test/biwi/biwi_eth.txt', 
+                        #'/data/test/crowds/crowds_zara01.txt',
+                        #'/data/test/crowds/uni_examples.txt', 
+                        #'/data/test/stanford/coupa_0.txt',
+                        # '/data/test/stanford/coupa_1.txt', '/data/test/stanford/gates_2.txt','/data/test/stanford/hyang_0.txt','/data/test/stanford/hyang_1.txt','/data/test/stanford/hyang_3.txt','/data/test/stanford/hyang_8.txt',
+                        #  '/data/test/stanford/little_0.txt','/data/test/stanford/little_1.txt','/data/test/stanford/little_2.txt','/data/test/stanford/little_3.txt','/data/test/stanford/nexus_5.txt','/data/test/stanford/nexus_6.txt',
+                        #  '/data/test/stanford/quad_0.txt','/data/test/stanford/quad_1.txt','/data/test/stanford/quad_2.txt','/data/test/stanford/quad_3.txt'
                           ]
+
+
+        #if(infer == True):
+            #print(os.listdir('data/test'))
+
+
         #base train files
         base_train_dataset = ['/data/train/biwi/biwi_hotel.txt', 
                         #'/data/train/crowds/arxiepiskopi1.txt','/data/train/crowds/crowds_zara02.txt',
@@ -40,12 +50,13 @@ class DataLoader():
                         #'/data/train/stanford/hyang_5.txt','/data/train/stanford/hyang_6.txt','/data/train/stanford/hyang_9.txt','/data/train/stanford/nexus_0.txt','/data/train/stanford/nexus_1.txt','/data/train/stanford/nexus_2.txt','/data/train/stanford/nexus_3.txt','/data/train/stanford/nexus_4.txt','/data/train/stanford/nexus_7.txt','/data/train/stanford/nexus_8.txt','/data/train/stanford/nexus_9.txt'
                         ]
         # dimensions of each file set
-        self.dataset_dimensions = {'biwi':[720, 576], 'crowds':[720, 576], 'stanford':[595, 326], 'mot':[768, 576]}
+        self.dataset_dimensions = {'biwi':[720, 576], 'crowds':[720, 576], 'stanford':[595, 326], 'mot':[768, 576],
+        'custom' : [1080,1080]}
         
         # List of data directories where raw data resides
-        self.base_train_path = 'data/train/'
-        self.base_test_path = 'data/test/'
-        self.base_validation_path = 'data/validation/'
+        self.base_train_path = 'sociallstm/data/train/'
+        self.base_test_path = 'sociallstm/data/test/'
+        self.base_validation_path = 'sociallstm/data/validation/'
 
         # check infer flag, if true choose test directory as base directory
         if infer is False:
@@ -122,35 +133,41 @@ class DataLoader():
         # for creating a dict key: folder names, values: files in this folder
         self.create_folder_file_dict()
 
+
         if self.additional_validation:
         # If the file doesn't exist or forcePreProcess is true
             if not(os.path.exists(self.data_file_vl)) or forcePreProcess:
-                print("Creating pre-processed validation data from raw data")
+                #print("Creating pre-processed validation data from raw data")
                 # Preprocess the data from the csv files of the datasets
                 # Note that this data is processed in frames
+                #print('===================================this1')
                 self.frame_preprocess(self.validation_dataset, self.data_file_vl, self.additional_validation)
 
         if self.infer:
         # if infer mode, and no additional files -> test preprocessing
             if not self.additional_validation:
                 if not(os.path.exists(self.data_file_te)) or forcePreProcess:
-                    print("Creating pre-processed test data from raw data")
+                    #print("Creating pre-processed test data from raw data")
                     # Preprocess the data from the csv files of the datasets
                     # Note that this data is processed in frames
-                    print("Working on directory: ", self.data_file_te)
-                    self.frame_preprocess(self.data_dirs, self.data_file_te)
+                    #print("Working on directory: ", self.data_file_te)
+                    if(singleInference):
+                        self.test_frame_preprocess(self.data_file_te,singleInference)
+                    else:
+                        self.frame_preprocess(self.validation_dataset, self.data_file_te, self.additional_validation)
             # if infer mode, and there are additional validation files -> validation dataset visualization
-            else:
-                print("Validation visualization file will be created")
+            #else:
+                #print("Validation visualization file will be created")
         
         # if not infer mode
         else:
             # If the file doesn't exist or forcePreProcess is true -> training pre-process
             if not(os.path.exists(self.data_file_tr)) or forcePreProcess:
-                print("Creating pre-processed training data from raw data")
+                #print("Creating pre-processed training data from raw data")
                 # Preprocess the data from the csv files of the datasets
                 # Note that this data is processed in frames
-                self.frame_preprocess(self.data_dirs, self.data_file_tr)
+                #print('===================================this3')
+                self.frame_preprocess(self.validation_dataset, self.data_file_vl, self.additional_validation)
 
         if self.infer:
             # Load the processed data from the pickle file
@@ -206,7 +223,7 @@ class DataLoader():
         for directory in data_dirs:
 
             # Load the data from the txt file
-            print("Now processing: ", directory)
+            #print("Now processing: ", directory)
             column_names = ['frame_num','ped_id','y','x']
 
             # if training mode, read train file to pandas dataframe and process
@@ -311,6 +328,120 @@ class DataLoader():
         f.close()
 
 
+
+    def test_frame_preprocess(self, data_file, data):
+
+
+
+        '''
+        Function that will pre-process the pixel_pos.csv files of each dataset
+        into data with occupancy grid that can be used
+        params:
+        data_dirs : List of directories where raw data resides
+        data_file : The file into which all the pre-processed data needs to be stored
+        validation_set: true when a dataset is in validation set
+        '''
+
+        # all_frame_data would be a list of list of numpy arrays corresponding to each dataset
+        # Each numpy array will correspond to a frame and would be of size (numPeds, 3) each row
+        # containing pedID, x, y
+        all_frame_data = []
+        # Validation frame data
+        valid_frame_data = []
+        # frameList_data would be a list of lists corresponding to each dataset
+        # Each list would contain the frameIds of all the frames in the dataset
+        frameList_data = []
+        valid_numPeds_data= []
+        # numPeds_data would be a list of lists corresponding to each dataset
+        # Ech list would contain the number of pedestrians in each frame in the dataset
+        numPeds_data = []
+        
+
+        #each list includes ped ids of this frame
+        pedsList_data = []
+        valid_pedsList_data = []
+        # target ped ids for each sequence
+        target_ids = []
+        orig_data = []
+
+        # Index of the current dataset
+        dataset_index = 0
+
+        # For each dataset
+        df = pd.DataFrame(data)
+
+        #print('this is it')
+        #print(df)
+        
+        self.target_ids = np.array(df[df['y'].isnull()].drop_duplicates(subset={'ped_id'}, keep='first', inplace=False)['ped_id'])
+
+        # convert pandas -> numpy array
+        data = np.array(df)
+
+            # keep original copy of file
+        orig_data.append(data)
+
+            #swap x and y points (in txt file it is like -> y,x)
+        data = np.swapaxes(data,0,1)
+            
+            # get frame numbers
+        frameList = data[0, :].tolist()
+
+
+            # Number of frames
+        numFrames = len(frameList)
+
+            # Add the list of frameIDs to the frameList_data
+        frameList_data.append(frameList)
+            # Initialize the list of numPeds for the current dataset
+        numPeds_data.append([])
+        valid_numPeds_data.append([])
+
+            # Initialize the list of numpy arrays for the current dataset
+        all_frame_data.append([])
+        # Initialize the list of numpy arrays for the current dataset
+        valid_frame_data.append([])
+
+            # list of peds for each frame
+        pedsList_data.append([])
+        valid_pedsList_data.append([])
+
+        target_ids.append(self.target_ids)
+
+        for ind, frame in enumerate(frameList):
+
+
+            # Extract all pedestrians in current frame
+            pedsInFrame = data[: , data[0, :] == frame]
+            #print("peds in %d: %s"%(frame,str(pedsInFrame)))
+            # Extract peds list
+            pedsList = pedsInFrame[1, :].tolist()
+            # Add number of peds in the current frame to the stored data
+            # Initialize the row of the numpy array
+            pedsWithPos = []
+            # For each ped in the current frame
+            for ped in pedsList:
+                # Extract their x and y positions
+                current_x = pedsInFrame[3, pedsInFrame[1, :] == ped][0]
+                current_y = pedsInFrame[2, pedsInFrame[1, :] == ped][0]
+                # Add their pedID, x, y to the row of the numpy array
+                pedsWithPos.append([ped, current_x, current_y])
+            # Add the details of all the peds in the current frame to all_frame_data
+            all_frame_data[dataset_index].append(np.array(pedsWithPos))
+            pedsList_data[dataset_index].append(pedsList)
+            numPeds_data[dataset_index].append(len(pedsList))
+
+
+        print('data_file')
+        print(data_file)
+
+        dataset_index += 1
+        f = open('./' + data_file, "wb")
+        pickle.dump((all_frame_data, frameList_data, numPeds_data, valid_numPeds_data, valid_frame_data, pedsList_data, valid_pedsList_data, target_ids, orig_data), f, protocol=2)
+        print('did this write')
+        f.close()
+
+
     def load_preprocessed(self, data_file, validation_set = False):
         '''
         Function to load the pre-processed data into the DataLoader object
@@ -319,12 +450,12 @@ class DataLoader():
         validation_set : flag for validation dataset
         '''
         # Load data from the pickled file
-        if(validation_set):
-            print("Loading validaton datasets: ", data_file)
-        else:
-            print("Loading train or test dataset: ", data_file)
+        #if(validation_set):
+        #    print("Loading validaton datasets: ", data_file)
+        #else:
+        #    print("Loading train or test dataset: ", data_file)
 
-        f = open(data_file, 'rb')
+        f = open('./'+  data_file, 'rb')
         self.raw_data = pickle.load(f)
         f.close()
 
@@ -343,8 +474,8 @@ class DataLoader():
 
         counter = 0
         valid_counter = 0
-        print('Sequence size(frame) ------>',self.seq_length)
-        print('One batch size (frame)--->-', self.batch_size*self.seq_length)
+        #print('Sequence size(frame) ------>',self.seq_length)
+        #print('One batch size (frame)--->-', self.batch_size*self.seq_length)
 
         # For each dataset
         for dataset in range(len(self.data)):
@@ -355,11 +486,11 @@ class DataLoader():
             # calculate number of sequence 
             num_seq_in_dataset = int(len(all_frame_data) / (self.seq_length))
             num_valid_seq_in_dataset = int(len(valid_frame_data) / (self.seq_length))
-            if not validation_set:
-                print('Training data from training dataset(name, # frame, #sequence)--> ', dataset_name, ':', len(all_frame_data),':', (num_seq_in_dataset))
-                print('Validation data from training dataset(name, # frame, #sequence)--> ', dataset_name, ':', len(valid_frame_data),':', (num_valid_seq_in_dataset))
-            else: 
-                print('Validation data from validation dataset(name, # frame, #sequence)--> ', dataset_name, ':', len(all_frame_data),':', (num_seq_in_dataset))
+            #if not validation_set:
+            #    print('Training data from training dataset(name, # frame, #sequence)--> ', dataset_name, ':', len(all_frame_data),':', (num_seq_in_dataset))
+            #    print('Validation data from training dataset(name, # frame, #sequence)--> ', dataset_name, ':', len(valid_frame_data),':', (num_valid_seq_in_dataset))
+            #else: 
+            #    print('Validation data from validation dataset(name, # frame, #sequence)--> ', dataset_name, ':', len(all_frame_data),':', (num_seq_in_dataset))
 
             # Increment the counter with the number of sequences in the current dataset
             counter += num_seq_in_dataset
@@ -370,11 +501,11 @@ class DataLoader():
         self.valid_num_batches = int(valid_counter/self.batch_size)
 
 
-        if not validation_set:
-            print('Total number of training batches:', self.num_batches)
-            print('Total number of validation batches:', self.valid_num_batches)
-        else:
-            print('Total number of validation batches:', self.num_batches)
+        #if not validation_set:
+        #    print('Total number of training batches:', self.num_batches)
+        #    print('Total number of validation batches:', self.valid_num_batches)
+        #else:
+        #    print('Total number of validation batches:', self.num_batches)
 
         # self.valid_num_batches = self.valid_num_batches * 2
 

@@ -7,9 +7,9 @@ import shutil
 from os import walk
 import math
 
-from model import SocialModel
-from olstm_model import OLSTMModel
-from vlstm_model import VLSTMModel
+from sociallstm.model import SocialModel
+from sociallstm.olstm_model import OLSTMModel
+from sociallstm.vlstm_model import VLSTMModel
 
 
 

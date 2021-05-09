@@ -8,11 +8,11 @@ import torch
 from torch.autograd import Variable
 
 import numpy as np
-from utils import DataLoader
-from helper import get_mean_error, get_final_error
+from sociallstm.utils import DataLoader
+from sociallstm.helper import get_mean_error, get_final_error
 
-from helper import *
-from grid import getSequenceGridMask
+from sociallstm.helper import *
+from sociallstm.grid import getSequenceGridMask
 
 class parameters():
     def __init__(self, args):

@@ -8,10 +8,10 @@ import time
 import pickle
 import subprocess
 
-from model import SocialModel
-from utils import DataLoader
-from grid import getSequenceGridMask
-from helper import *
+from sociallstm.model import SocialModel
+from sociallstm.utils import DataLoader
+from sociallstm.grid import getSequenceGridMask
+from sociallstm.helper import *
 
 
 def main():

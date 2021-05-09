@@ -11,10 +11,10 @@ import torch
 from torch.autograd import Variable
 
 import numpy as np
-from utils import DataLoader
-from helper import getCoef, sample_gaussian_2d, get_mean_error, get_final_error
-from helper import *
-from grid import getSequenceGridMask, getGridMask
+from sociallstm.utils import DataLoader
+from sociallstm.helper import getCoef, sample_gaussian_2d, get_mean_error, get_final_error
+from sociallstm.helper import *
+from sociallstm.grid import getSequenceGridMask, getGridMask
 
 
 def main():
