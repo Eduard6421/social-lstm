@@ -7,7 +7,6 @@ import argparse
 import time
 import subprocess
 import numpy as np
-import time
 
 import torch
 from torch.autograd import Variable
@@ -106,7 +105,7 @@ def parse_args():
     #print('set')
 
 
-def main(data):
+def main(data,exact_number):
 
     global net
     global saved_args
@@ -140,6 +139,7 @@ def main(data):
 
     '''exact_number sau 1''' 
     
+    print('exact number {}'.format(exact_number))
     dataloader = DataLoader(f_prefix, 1 
     , seq_lenght, forcePreProcess = True, infer=True, singleInference=data)
     #create_directories(os.path.join(result_directory, model_name), dataloader.get_all_directory_namelist())
@@ -172,10 +172,6 @@ def main(data):
     final_error = 0
 
 
-    start = time.process_time()
-
-    print('i started at this point')
-
     for iteration in range(sample_args.iteration):
         # Initialize net
 
@@ -183,13 +179,8 @@ def main(data):
 
         futures = []
 
-        start = time.time()
-
         for batch in range(dataloader.num_batches):
-
-
-
-            
+            start = time.time()
             # Get data
             x, y, d , numPedsList, PedsList ,target_ids = dataloader.next_batch()
 
@@ -253,13 +244,13 @@ def main(data):
         ## get back this data from eachresults.append((x_seq.data.cpu().numpy(), ret_x_seq.data.cpu().numpy(), PedsList_seq, lookup_seq , dataloader.get_frame_sequence(seq_lenght), target_id, sample_args.obs_length))
 
 
-        results = [future.result() for future in futures]
+        razultate = [future.result() for future in futures]
+
+        print(razultate)
+        raise 'epnus'
 
         #iteration_submission.append(submission)
         iteration_result.append(results)
-    
-        print('i reached this point')
-        print(f'Time: {time.time() - start}')
 
 
         #submission_store.append(iteration_submission)
@@ -279,10 +270,6 @@ def main(data):
     #print('Smallest error iteration:', smallest_err_iter_num+1)
     #dataloader.write_to_file(submission_store[smallest_err_iter_num], result_directory, prefix, model_name)
     #dataloader.write_to_plot_file(result_store[smallest_err_iter_num], os.path.join(plot_directory, plot_test_file_directory))
-
-    #print(result_store[smallest_err_iter_num])
-    #print(len(results[0]))
-
 
     return result_store[smallest_err_iter_num]
 
@@ -426,9 +413,9 @@ def run_sample(args):
 
 
 
-def run_script(data):
+def run_script(data,exact_number):
     parse_args()
     if(net == None):
         load_model()
-    result = main(data)
+    result = main(data,exact_number)
     return result

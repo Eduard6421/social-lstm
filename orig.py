@@ -1,4 +1,3 @@
-from csv import excel_tab
 import os
 import pickle
 import os
@@ -7,7 +6,6 @@ import argparse
 import time
 import subprocess
 import numpy as np
-import time
 
 import torch
 from torch.autograd import Variable
@@ -16,7 +14,7 @@ from sociallstm.utils import DataLoader
 from sociallstm.helper import getCoef, sample_gaussian_2d, get_mean_error, get_final_error
 from sociallstm.helper import *
 from sociallstm.grid import getSequenceGridMask, getGridMask
-from concurrent.futures import ThreadPoolExecutor
+
 
 net = None
 sample_args = None
@@ -138,10 +136,9 @@ def main(data):
 
     inputData = []
 
-    '''exact_number sau 1''' 
+
     
-    dataloader = DataLoader(f_prefix, 1 
-    , seq_lenght, forcePreProcess = True, infer=True, singleInference=data)
+    dataloader = DataLoader(f_prefix, 1, seq_lenght, forcePreProcess = True, infer=True, singleInference=data)
     #create_directories(os.path.join(result_directory, model_name), dataloader.get_all_directory_namelist())
     dataloader.reset_batch_pointer()
 
@@ -172,24 +169,12 @@ def main(data):
     final_error = 0
 
 
-    start = time.process_time()
-
-    print('i started at this point')
-
     for iteration in range(sample_args.iteration):
         # Initialize net
 
-        executor = ThreadPoolExecutor(max_workers=100)
-
-        futures = []
-
-        start = time.time()
 
         for batch in range(dataloader.num_batches):
-
-
-
-            
+            start = time.time()
             # Get data
             x, y, d , numPedsList, PedsList ,target_ids = dataloader.next_batch()
 
@@ -224,7 +209,6 @@ def main(data):
             if sample_args.use_cuda:
                 x_seq = x_seq.cuda()
 
-
             # The sample function
             if sample_args.method == 3: #vanilla lstm
                 # Extract the observed part of the trajectories
@@ -234,35 +218,41 @@ def main(data):
             else:
                 # Extract the observed part of the trajectories
                 obs_traj, obs_PedsList_seq, obs_grid = x_seq[:sample_args.obs_length], PedsList_seq[:sample_args.obs_length], grid_seq[:sample_args.obs_length]
-                #ret_x_seq = sample(obs_traj, obs_PedsList_seq, sample_args, net, x_seq, PedsList_seq, saved_args, dataset_data, dataloader, lookup_seq, numPedsList_seq, sample_args.gru, obs_grid)
+                ret_x_seq = sample(obs_traj, obs_PedsList_seq, sample_args, net, x_seq, PedsList_seq, saved_args, dataset_data, dataloader, lookup_seq, numPedsList_seq, sample_args.gru, obs_grid)
             
             #revert the points back to original space
-            #ret_x_seq = revert_seq(ret_x_seq, PedsList_seq, lookup_seq, first_values_dict)
-
-            futures.append(executor.submit(run_sample,(obs_traj, obs_PedsList_seq, sample_args, net, x_seq, PedsList_seq, saved_args, dataset_data, dataloader, lookup_seq, numPedsList_seq, sample_args.gru, obs_grid,first_values_dict)))
+            ret_x_seq = revert_seq(ret_x_seq, PedsList_seq, lookup_seq, first_values_dict)
             
             
             # Record the mean and final displacement error
-            #total_error += get_mean_error(ret_x_seq[1:sample_args.obs_length].data, orig_x_seq[1:sample_args.obs_length].data, PedsList_seq[1:sample_args.obs_length], PedsList_seq[1:sample_args.obs_length], sample_args.use_cuda, lookup_seq)
-            #final_error += get_final_error(ret_x_seq[1:sample_args.obs_length].data, orig_x_seq[1:sample_args.obs_length].data, PedsList_seq[1:sample_args.obs_length], PedsList_seq[1:sample_args.obs_length], lookup_seq)
+            total_error += get_mean_error(ret_x_seq[1:sample_args.obs_length].data, orig_x_seq[1:sample_args.obs_length].data, PedsList_seq[1:sample_args.obs_length], PedsList_seq[1:sample_args.obs_length], sample_args.use_cuda, lookup_seq)
+            final_error += get_final_error(ret_x_seq[1:sample_args.obs_length].data, orig_x_seq[1:sample_args.obs_length].data, PedsList_seq[1:sample_args.obs_length], PedsList_seq[1:sample_args.obs_length], lookup_seq)
 
+            
+            end = time.time()
 
             #print('Current file : ', dataloader.get_file_name(0),' Processed trajectory number : ', batch+1, 'out of', dataloader.num_batches, 'trajectories in time', end - start)
 
-            #submission.append(submission_preprocess(dataloader, ret_x_seq.data[sample_args.obs_length:, lookup_seq[target_id], :].numpy(), sample_args.pred_length, sample_args.obs_length, target_id))
-        ## get back this data from eachresults.append((x_seq.data.cpu().numpy(), ret_x_seq.data.cpu().numpy(), PedsList_seq, lookup_seq , dataloader.get_frame_sequence(seq_lenght), target_id, sample_args.obs_length))
 
 
-        results = [future.result() for future in futures]
+            if dataset_pointer_ins is not dataloader.dataset_pointer:
+                if dataloader.dataset_pointer != 0 :
+                    iteration_submission.append(submission)
+                    iteration_result.append(results)
 
-        #iteration_submission.append(submission)
+                dataset_pointer_ins = dataloader.dataset_pointer
+                submission = []
+                results = []
+
+            
+            submission.append(submission_preprocess(dataloader, ret_x_seq.data[sample_args.obs_length:, lookup_seq[target_id], :].numpy(), sample_args.pred_length, sample_args.obs_length, target_id))
+            results.append((x_seq.data.cpu().numpy(), ret_x_seq.data.cpu().numpy(), PedsList_seq, lookup_seq , dataloader.get_frame_sequence(seq_lenght), target_id, sample_args.obs_length))
+
+
+        iteration_submission.append(submission)
         iteration_result.append(results)
-    
-        print('i reached this point')
-        print(f'Time: {time.time() - start}')
 
-
-        #submission_store.append(iteration_submission)
+        submission_store.append(iteration_submission)
         result_store.append(iteration_result)
 
         if total_error<smallest_err:
@@ -275,14 +265,9 @@ def main(data):
         #print('Iteration:' ,iteration+1,' Total training (observed part) mean error of the model is ', total_error / dataloader.num_batches)
         #print('Iteration:' ,iteration+1,'Total training (observed part) final error of the model is ', final_error / dataloader.num_batches)
 
-    #print(submission_store[0])
     #print('Smallest error iteration:', smallest_err_iter_num+1)
-    #dataloader.write_to_file(submission_store[smallest_err_iter_num], result_directory, prefix, model_name)
+    dataloader.write_to_file(submission_store[smallest_err_iter_num], result_directory, prefix, model_name)
     #dataloader.write_to_plot_file(result_store[smallest_err_iter_num], os.path.join(plot_directory, plot_test_file_directory))
-
-    #print(result_store[smallest_err_iter_num])
-    #print(len(results[0]))
-
 
     return result_store[smallest_err_iter_num]
 
@@ -416,19 +401,9 @@ def submission_preprocess(dataloader, ret_x_seq, pred_length, obs_length, target
     return result
 
 
-def run_sample(args):
-    (obs_traj, obs_PedsList_seq, sample_args, net, x_seq, PedsList_seq, saved_args, dataset_data, dataloader, lookup_seq, numPedsList_seq, sample_args.gru, obs_grid, first_values_dict) = args
-    ret_x_seq = sample(obs_traj, obs_PedsList_seq, sample_args, net, x_seq, PedsList_seq, saved_args, dataset_data, dataloader, lookup_seq, numPedsList_seq, sample_args.gru, obs_grid)
-    ret_x_seq = revert_seq(ret_x_seq, PedsList_seq, lookup_seq, first_values_dict)
-    return ret_x_seq
-
-
-
-
 
 def run_script(data):
     parse_args()
-    if(net == None):
-        load_model()
+    load_model()
     result = main(data)
     return result

@@ -432,13 +432,9 @@ class DataLoader():
             numPeds_data[dataset_index].append(len(pedsList))
 
 
-        print('data_file')
-        print(data_file)
-
         dataset_index += 1
         f = open('./' + data_file, "wb")
         pickle.dump((all_frame_data, frameList_data, numPeds_data, valid_numPeds_data, valid_frame_data, pedsList_data, valid_pedsList_data, target_ids, orig_data), f, protocol=2)
-        print('did this write')
         f.close()
 
 
